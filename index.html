@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>隨手筆記本</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="筆記本">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#E6EBEA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B22" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen app. A note rail beside a ruled-paper page; on phones the two swap places. */
+:root {
+  --bg: #E6EBEA;
+  --paper: #FBFCFA;
+  --ink: #1C2B3A;
+  --muted: #627282;
+  --rule: #D3DEE4;
+  --margin: #E0707F;
+  --accent: #2B5FA8;
+  --accent-ink: #FFFFFF;
+  --line: #C9D3D6;
+  --sel: #DCE7F3;
+  --danger: #B93848;
+  --display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", serif;
+  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --row: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141B22; --paper: #1C252E; --ink: #E3EAF0; --muted: #8C9BA9;
+    --rule: #2C3944; --margin: #A8525F; --accent: #7FB0EE; --accent-ink: #0F1B28;
+    --line: #2E3B46; --sel: #253547; --danger: #F08A97; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141B22; --paper: #1C252E; --ink: #E3EAF0; --muted: #8C9BA9;
+  --rule: #2C3944; --margin: #A8525F; --accent: #7FB0EE; --accent-ink: #0F1B28;
+  --line: #2E3B46; --sel: #253547; --danger: #F08A97; color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; }
+* { box-sizing: border-box; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 8px 12px; min-height: 40px; }
+button:hover { background: var(--sel); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 16px; padding-inline: 16px; padding-block: 16px; max-width: 1100px; margin-inline: auto; }
+
+.rail { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
+.rail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; letter-spacing: .04em; }
+.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; white-space: nowrap; }
+.primary:hover { background: var(--accent); filter: brightness(1.08); }
+#search { width: 100%; font-size: 16px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+
+.list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; border-top: 1px solid var(--line); }
+.list li { border-bottom: 1px solid var(--line); }
+.item { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; padding: 12px 8px; min-height: 0; }
+.item[aria-current="true"] { background: var(--sel); }
+.item-top { display: flex; align-items: baseline; gap: 8px; }
+.item-title { font-family: var(--display); font-size: 18px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item-pin { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; white-space: nowrap; }
+.item-preview { color: var(--muted); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { color: var(--muted); margin: 0; padding: 20px 8px; line-height: 1.7; }
+.store-note { color: var(--muted); font-size: 12px; margin: 0; }
+
+.page { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.blank { margin: auto; padding: 24px; text-align: center; color: var(--muted); font-family: var(--display); font-size: 20px; }
+.editor { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.bar #status { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar #status.err { color: var(--danger); }
+#back { display: none; }
+#pin[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+#del { color: var(--danger); }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--sel); }
+.confirm span { flex: 1; min-width: 12em; }
+#del-yes { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+
+#note-title { border: 0; border-bottom: 2px solid var(--rule); background: transparent; font-family: var(--display); font-weight: 700; font-size: 24px; padding: 14px 16px 10px 44px; width: 100%; outline-offset: -2px;
+  background-image: linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px); }
+#note-body { flex: 1; min-height: 0; width: 100%; border: 0; resize: none; font-size: 17px; line-height: var(--row); padding: 0 16px 0 44px; outline-offset: -2px; background-color: transparent;
+  background-image:
+    linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px),
+    linear-gradient(transparent calc(var(--row) - 1px), var(--rule) calc(var(--row) - 1px));
+  background-size: 100% 100%, 100% var(--row);
+  background-attachment: local, local; }
+#note-title:focus-visible, #note-body:focus-visible { outline: none; }
+::placeholder { color: var(--muted); opacity: .7; }
+
+@media (max-width: 759px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .page { display: none; }
+  .app.editing .page { display: flex; }
+  .app.editing .rail { display: none; }
+  #back { display: inline-block; }
+}
+
+html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+[hidden] { display: none !important; }
+body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+.app { height: 100dvh; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.foot { display: flex; flex-direction: column; gap: 8px; }
+.foot-btns { display: flex; gap: 8px; }
+.foot-btns button { flex: 1; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="rail">
+    <header class="rail-head">
+      <h1>隨手筆記本</h1>
+      <button id="new-note" class="primary" type="button">＋ 新筆記</button>
+    </header>
+    <input id="search" type="search" placeholder="搜尋筆記" aria-label="搜尋筆記">
+    <ul id="note-list" class="list" aria-label="筆記列表"></ul>
+    <div class="foot">
+      <div class="foot-btns">
+        <button id="export" type="button">匯出備份</button>
+        <button id="import" type="button">匯入備份</button>
+        <input id="import-file" type="file" accept="application/json,.json" hidden>
+      </div>
+      <p id="store-note" class="store-note">筆記只存在這支手機裡，建議定期匯出備份。</p>
+    </div>
+  </aside>
+
+  <main class="page">
+    <div id="blank" class="blank">選一則筆記，或寫一則新的。</div>
+    <div id="editor" class="editor" hidden>
+      <div class="bar">
+        <button id="back" type="button" aria-label="回到列表">‹ 列表</button>
+        <span id="status" role="status"></span>
+        <button id="pin" type="button" aria-pressed="false">釘選</button>
+        <button id="del" type="button">刪除</button>
+      </div>
+      <div id="confirm" class="confirm" hidden>
+        <span>刪除這則筆記？刪除後無法復原。</span>
+        <button id="del-yes" type="button">刪除</button>
+        <button id="del-no" type="button">取消</button>
+      </div>
+      <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
+      <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

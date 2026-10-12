@@ -14,6 +14,9 @@
 <meta name="theme-color" content="#E6EBEA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141B22" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500&display=swap">
+<script>
+try { var t = localStorage.getItem("notebook.theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+</script>
 <style>
 /* Layout: one-screen app. A note rail beside a ruled-paper page; on phones the two swap places. */
 :root {
@@ -69,7 +72,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; 
 .item-top { display: flex; align-items: baseline; gap: 8px; }
 .item-title { font-family: var(--display); font-size: 18px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.item-pin { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; white-space: nowrap; }
+.item-badge { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; white-space: nowrap; }
 .item-preview { color: var(--muted); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty { color: var(--muted); margin: 0; padding: 20px 8px; line-height: 1.7; }
 .store-note { color: var(--muted); font-size: 12px; margin: 0; }
@@ -113,6 +116,38 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 .foot { display: flex; flex-direction: column; gap: 8px; }
 .foot-btns { display: flex; gap: 8px; }
 .foot-btns button { flex: 1; font-size: 13px; }
+
+.head-btns { display: flex; gap: 8px; }
+.tag-bar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; padding-bottom: 2px; }
+.tag-bar::-webkit-scrollbar { display: none; }
+.chip { min-height: 32px; padding: 4px 12px; border-radius: 16px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.item-tags { font-size: 12px; color: var(--accent); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#note-tags { border: 0; border-bottom: 1px solid var(--rule); background: transparent; font-size: 16px; color: var(--accent); padding: 6px 16px 6px 44px; width: 100%; outline-offset: -2px;
+  background-image: linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px); }
+#note-tags:focus-visible { outline: none; }
+#lock[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 15, 20, .45); }
+#modal { z-index: 30; }
+.sheet { width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; }
+.sheet h2 { font-family: var(--display); font-size: 21px; margin: 0; }
+.sheet h3 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 0 0 8px; }
+.sheet section { display: flex; flex-direction: column; }
+.sheet-msg + .sheet-msg { margin-top: 6px; }
+.sheet-msg { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.sheet-err { margin: 0; color: var(--danger); font-size: 14px; min-height: 1.4em; }
+.sheet-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sheet-btns { display: flex; justify-content: flex-end; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.field + .field { margin-top: 10px; }
+.field input { font-size: 16px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.seg { display: flex; }
+.seg button { flex: 1; border-radius: 0; }
+.seg button + button { margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { position: relative; background: var(--sel); border-color: var(--accent); color: var(--accent); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -120,14 +155,19 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
   <aside class="rail">
     <header class="rail-head">
       <h1>隨手筆記本</h1>
-      <button id="new-note" class="primary" type="button">＋ 新筆記</button>
+      <div class="head-btns">
+        <button id="open-settings" type="button">設定</button>
+        <button id="new-note" class="primary" type="button">＋ 新筆記</button>
+      </div>
     </header>
-    <input id="search" type="search" placeholder="搜尋筆記" aria-label="搜尋筆記">
+    <input id="search" type="search" placeholder="搜尋筆記或標籤" aria-label="搜尋筆記">
+    <div id="tag-bar" class="tag-bar" aria-label="依標籤篩選" hidden></div>
     <ul id="note-list" class="list" aria-label="筆記列表"></ul>
     <div class="foot">
       <div class="foot-btns">
         <button id="export" type="button">匯出備份</button>
         <button id="import" type="button">匯入備份</button>
+        <button id="relock" type="button" hidden>鎖上</button>
         <input id="import-file" type="file" accept="application/json,.json" hidden>
       </div>
       <p id="store-note" class="store-note">筆記只存在這支手機裡，建議定期匯出備份。</p>
@@ -141,6 +181,7 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="back" type="button" aria-label="回到列表">‹ 列表</button>
         <span id="status" role="status"></span>
         <button id="pin" type="button" aria-pressed="false">釘選</button>
+        <button id="lock" type="button" aria-pressed="false">上鎖</button>
         <button id="del" type="button">刪除</button>
       </div>
       <div id="confirm" class="confirm" hidden>
@@ -149,9 +190,48 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="del-no" type="button">取消</button>
       </div>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
+      <input id="note-tags" type="text" placeholder="標籤，用空白分開，例如：工作 待辦" aria-label="標籤" autocomplete="off" autocapitalize="off" enterkeyhint="next">
       <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
     </div>
   </main>
+</div>
+
+<div id="settings" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <h2 id="settings-title">設定</h2>
+    <section>
+      <h3>外觀</h3>
+      <div class="seg">
+        <button type="button" data-theme-opt="auto">跟隨系統</button>
+        <button type="button" data-theme-opt="light">淺色</button>
+        <button type="button" data-theme-opt="dark">深色</button>
+      </div>
+    </section>
+    <section>
+      <h3>上鎖密碼</h3>
+      <p id="lock-state" class="sheet-msg"></p>
+      <p class="sheet-msg">上鎖的筆記標題和內容會加密，標籤不會加密。</p>
+      <div class="sheet-row">
+        <button id="lock-set" type="button">設定密碼</button>
+        <button id="lock-change" type="button">更改密碼</button>
+        <button id="lock-now" type="button">立即鎖上</button>
+      </div>
+    </section>
+    <div class="sheet-btns"><button id="settings-close" class="primary" type="button">完成</button></div>
+  </div>
+</div>
+
+<div id="modal" class="overlay" hidden>
+  <form id="modal-form" class="sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title" novalidate>
+    <h2 id="modal-title"></h2>
+    <p id="modal-msg" class="sheet-msg"></p>
+    <div id="modal-fields"></div>
+    <p id="modal-err" class="sheet-err" role="alert"></p>
+    <div class="sheet-btns">
+      <button id="modal-cancel" type="button">取消</button>
+      <button id="modal-ok" class="primary" type="submit">確定</button>
+    </div>
+  </form>
 </div>
 
 <script src="app.js"></script>

@@ -1,6 +1,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var app = $("app"), listEl = $("note-list"), storeNote = $("store-note"), tagBar = $("tag-bar");
+  var app = $("app"), listEl = $("note-list"), tagBar = $("tag-bar");
+  var each = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
   var editor = $("editor"), blank = $("blank"), statusEl = $("status");
   var titleEl = $("note-title"), tagsEl = $("note-tags"), bodyEl = $("note-body");
   var pinEl = $("pin"), lockEl = $("lock"), confirmEl = $("confirm"), relockEl = $("relock");
@@ -374,7 +375,9 @@
 
   /* ---- settings ---- */
   var settings = $("settings");
-  $("open-settings").addEventListener("click", function () { renderLockUi(); settings.hidden = false; $("settings-close").focus(); });
+  each(".open-settings", function (b) {
+    b.addEventListener("click", function () { renderLockUi(); settings.hidden = false; $("settings-close").focus(); });
+  });
   $("settings-close").addEventListener("click", function () { settings.hidden = true; });
   $("lock-set").addEventListener("click", function () { ensureUnlocked(); });
   $("lock-change").addEventListener("click", changePasswordDialog);
@@ -453,36 +456,45 @@
   window.addEventListener("pagehide", function () { if (timer) persist(); });
 
   /* ---- backup ---- */
-  function note(text) { storeNote.textContent = text; }
-  $("export").addEventListener("click", async function () {
+  function note(text) { each(".js-store-note", function (el) { el.textContent = text; }); }
+  async function exportBackup() {
     await persist();
+    note("準備備份中…");
     var d = new Date(), p = function (x) { return String(x).padStart(2, "0"); };
     var name = "notebook-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + ".json";
-    var payload = { app: "notebook", version: 2, exported: d.toISOString(), notes: dump() };
+    var payload = { app: "notebook", version: 3, exported: d.toISOString(), notes: dump() };
     if (lockCfg) payload.lock = lockCfg;
+    if (window.Diary) {
+      try { payload.diary = await window.Diary.exportData(); }
+      catch (e) { note("匯出失敗：讀取日記照片時出錯。"); return; }
+    }
     var locked = 0;
     notes.forEach(function (n) { if (n.locked) locked++; });
+    var summary = notes.size + " 則筆記" + (payload.diary ? "、" + Object.keys(payload.diary.entries).length + " 天日記（" + payload.diary.photos.length + " 張照片）" : "");
     var tail = locked ? "上鎖的 " + locked + " 則在備份裡仍是加密的，還原時要用同一組密碼。" : "";
-    var file = new File([JSON.stringify(payload, null, 2)], name, { type: "application/json" });
+    var file = new File([JSON.stringify(payload)], name, { type: "application/json" });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: name });
-        note("已匯出 " + notes.size + " 則筆記。" + tail); return;
+        note("已匯出 " + summary + "。" + tail); return;
       }
-    } catch (e) { if (e && e.name === "AbortError") return; }
+    } catch (e) { if (e && e.name === "AbortError") { note(""); return; } }
     var a = document.createElement("a");
     a.href = URL.createObjectURL(file); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
-    note("已匯出 " + notes.size + " 則筆記：" + name + "。" + tail);
-  });
-  $("import").addEventListener("click", function () { $("import-file").click(); });
+    note("已匯出 " + summary + "：" + name + "。" + tail);
+  }
+  each(".js-export", function (b) { b.addEventListener("click", exportBackup); });
+  each(".js-import", function (b) { b.addEventListener("click", function () { $("import-file").click(); }); });
   $("import-file").addEventListener("change", async function (e) {
     var f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
+    note("匯入中…");
     try {
       var data = JSON.parse(await f.text());
-      var src = data && data.notes && typeof data.notes === "object" ? data.notes : null;
+      var hasDiary = !!(data && data.diary && typeof data.diary === "object");
+      var src = data && data.notes && typeof data.notes === "object" ? data.notes : (hasDiary ? {} : null);
       if (!src) throw new Error("format");
       if (!lockCfg && validCfg(data.lock)) {
         var c = { salt: data.lock.salt, check: { iv: data.lock.check.iv, ct: data.lock.check.ct } };
@@ -499,7 +511,12 @@
       if (isUnlocked()) await decryptAll();
       if (!(await persist())) throw new Error("save");
       renderAll();
-      note("匯入完成：新增 " + added + " 則，更新 " + updated + " 則。");
+      var msg = "匯入完成：筆記新增 " + added + " 則，更新 " + updated + " 則";
+      if (hasDiary && window.Diary) {
+        var r = await window.Diary.importData(data.diary);
+        if (r) msg += "；日記新增 " + r.added + " 天，更新 " + r.updated + " 天，照片 " + r.photos + " 張";
+      }
+      note(msg + "。");
     } catch (err) {
       note(err.message === "save" ? "匯入失敗：手機空間不足。" : "匯入失敗：這不是筆記本的備份檔。");
     }

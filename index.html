@@ -81,32 +81,32 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; 
 .blank { margin: auto; padding: 24px; text-align: center; color: var(--muted); font-family: var(--display); font-size: 20px; }
 .editor { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
-.bar #status { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar #status.err { color: var(--danger); }
-#back { display: none; }
+.bar .status { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .status.err { color: var(--danger); }
+#back, #d-back { display: none; }
 #pin[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-#del { color: var(--danger); }
+#del, .danger-text { color: var(--danger); }
 .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--sel); }
 .confirm span { flex: 1; min-width: 12em; }
-#del-yes { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+.danger-btn { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 
 #note-title { border: 0; border-bottom: 2px solid var(--rule); background: transparent; font-family: var(--display); font-weight: 700; font-size: 24px; padding: 14px 16px 10px 44px; width: 100%; outline-offset: -2px;
   background-image: linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px); }
-#note-body { flex: 1; min-height: 0; width: 100%; border: 0; resize: none; font-size: 17px; line-height: var(--row); padding: 0 16px 0 44px; outline-offset: -2px; background-color: transparent;
+#note-body, .ruled { flex: 1; min-height: 0; width: 100%; border: 0; resize: none; font-size: 17px; line-height: var(--row); padding: 0 16px 0 44px; outline-offset: -2px; background-color: transparent;
   background-image:
     linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px),
     linear-gradient(transparent calc(var(--row) - 1px), var(--rule) calc(var(--row) - 1px));
   background-size: 100% 100%, 100% var(--row);
   background-attachment: local, local; }
-#note-title:focus-visible, #note-body:focus-visible { outline: none; }
+#note-title:focus-visible, #note-body:focus-visible, .ruled:focus-visible { outline: none; }
 ::placeholder { color: var(--muted); opacity: .7; }
 
 @media (max-width: 759px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .page { display: none; }
-  .app.editing .page { display: flex; }
-  .app.editing .rail { display: none; }
-  #back { display: inline-block; }
+  .app.editing .notes-page, .app.diary-editing .diary-page { display: flex; }
+  .app.editing .notes-rail, .app.diary-editing .diary-rail { display: none; }
+  #back, #d-back { display: inline-block; }
 }
 
 html, body { margin: 0; height: 100%; overscroll-behavior: none; }
@@ -148,45 +148,83 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 .seg button:first-child { border-radius: 6px 0 0 6px; }
 .seg button:last-child { border-radius: 0 6px 6px 0; }
 .seg button[aria-pressed="true"] { position: relative; background: var(--sel); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+
+.app[data-view="diary"] .notes-only, .app:not([data-view="diary"]) .diary-only { display: none !important; }
+.view-switch { flex-shrink: 0; }
+#d-search { width: 100%; font-size: 16px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.cal { flex-shrink: 0; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.cal-head span { font-family: var(--display); font-size: 19px; font-weight: 700; }
+.cal-head button { min-width: 44px; font-size: 18px; padding: 4px 10px; }
+.cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-week span { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 2px; }
+.day { position: relative; aspect-ratio: 1 / 1; min-height: 0; padding: 3px 5px; border: 1px solid transparent; border-radius: 6px; display: flex; align-items: flex-start; justify-content: flex-start; font-size: 13px; font-variant-numeric: tabular-nums; background-color: var(--paper); background-size: cover; background-position: center; overflow: hidden; }
+.day.pad { visibility: hidden; }
+.day.today { border-color: var(--accent); }
+.day.today .day-num { color: var(--accent); font-weight: 700; }
+.day[aria-current="date"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.day.has-text::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--accent); }
+.day.has-photo::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,0) 60%); }
+.day.has-photo .day-num, .day.has-photo.today .day-num { position: relative; color: #fff; font-weight: 700; }
+.day.has-photo::after { background: #fff; }
+.day.match { box-shadow: inset 0 0 0 2px var(--margin); }
+.list-title { margin: 0; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.bar button { white-space: nowrap; flex-shrink: 0; }
+.d-date { flex-shrink: 1; font-family: var(--display); font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.photos { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
+.photo, .photo-add { flex: 0 0 auto; width: 72px; height: 72px; min-height: 0; padding: 0; border-radius: 6px; }
+.photo { border: 1px solid var(--line); background-color: var(--sel); background-size: cover; background-position: center; }
+.photo.missing { background-image: none; }
+.photo-add { border-style: dashed; color: var(--accent); font-size: 13px; }
+.viewer { flex-direction: column; gap: 12px; background: rgba(0, 0, 0, .88); }
+.viewer img { max-width: 100%; max-height: calc(100% - 64px); object-fit: contain; border-radius: 4px; }
+.viewer-bar { display: flex; gap: 8px; }
+.viewer-bar button { color: #fff; border-color: rgba(255,255,255,.5); }
+.viewer-bar .primary { color: var(--accent-ink); border-color: var(--accent); }
+#viewer-del[data-armed] { background: #B93848; border-color: #B93848; }
 </style>
 </head>
 <body>
-<div class="app" id="app">
-  <aside class="rail">
+<div class="app" id="app" data-view="notes">
+  <aside class="rail notes-rail notes-only">
     <header class="rail-head">
       <h1>隨手筆記本</h1>
       <div class="head-btns">
-        <button id="open-settings" type="button">設定</button>
+        <button class="open-settings" type="button">設定</button>
         <button id="new-note" class="primary" type="button">＋ 新筆記</button>
       </div>
     </header>
+    <div class="seg view-switch" aria-label="切換筆記或日記">
+      <button type="button" data-view-opt="notes">筆記</button>
+      <button type="button" data-view-opt="diary">日記</button>
+    </div>
     <input id="search" type="search" placeholder="搜尋筆記或標籤" aria-label="搜尋筆記">
     <div id="tag-bar" class="tag-bar" aria-label="依標籤篩選" hidden></div>
     <ul id="note-list" class="list" aria-label="筆記列表"></ul>
     <div class="foot">
       <div class="foot-btns">
-        <button id="export" type="button">匯出備份</button>
-        <button id="import" type="button">匯入備份</button>
+        <button class="js-export" type="button">匯出備份</button>
+        <button class="js-import" type="button">匯入備份</button>
         <button id="relock" type="button" hidden>鎖上</button>
         <input id="import-file" type="file" accept="application/json,.json" hidden>
       </div>
-      <p id="store-note" class="store-note">筆記只存在這支手機裡，建議定期匯出備份。</p>
+      <p class="store-note js-store-note">筆記只存在這支手機裡，建議定期匯出備份。</p>
     </div>
   </aside>
 
-  <main class="page">
+  <main class="page notes-page notes-only">
     <div id="blank" class="blank">選一則筆記，或寫一則新的。</div>
     <div id="editor" class="editor" hidden>
       <div class="bar">
         <button id="back" type="button" aria-label="回到列表">‹ 列表</button>
-        <span id="status" role="status"></span>
+        <span id="status" class="status" role="status"></span>
         <button id="pin" type="button" aria-pressed="false">釘選</button>
         <button id="lock" type="button" aria-pressed="false">上鎖</button>
         <button id="del" type="button">刪除</button>
       </div>
       <div id="confirm" class="confirm" hidden>
         <span>刪除這則筆記？刪除後無法復原。</span>
-        <button id="del-yes" type="button">刪除</button>
+        <button id="del-yes" class="danger-btn" type="button">刪除</button>
         <button id="del-no" type="button">取消</button>
       </div>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
@@ -194,6 +232,62 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
       <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
     </div>
   </main>
+
+  <aside class="rail diary-rail diary-only">
+    <header class="rail-head">
+      <h1>隨手筆記本</h1>
+      <div class="head-btns">
+        <button class="open-settings" type="button">設定</button>
+        <button id="d-today" class="primary" type="button">今天</button>
+      </div>
+    </header>
+    <div class="seg view-switch" aria-label="切換筆記或日記">
+      <button type="button" data-view-opt="notes">筆記</button>
+      <button type="button" data-view-opt="diary">日記</button>
+    </div>
+    <input id="d-search" type="search" placeholder="搜尋日記" aria-label="搜尋日記">
+    <div class="cal">
+      <div class="cal-head">
+        <button id="d-prev" type="button" aria-label="上個月">‹</button>
+        <span id="d-month"></span>
+        <button id="d-next" type="button" aria-label="下個月">›</button>
+      </div>
+      <div class="cal-week" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+      <div id="d-grid" class="cal-grid"></div>
+    </div>
+    <p id="d-list-title" class="list-title"></p>
+    <ul id="d-list" class="list" aria-label="日記列表"></ul>
+  </aside>
+
+  <main class="page diary-page diary-only">
+    <div id="d-blank" class="blank">在日曆上選一天，開始寫日記。</div>
+    <div id="d-editor" class="editor" hidden>
+      <div class="bar">
+        <button id="d-back" type="button" aria-label="回到日曆">‹ 日曆</button>
+        <span id="d-date" class="d-date"></span>
+        <span id="d-status" class="status" role="status"></span>
+        <button id="d-del" type="button" class="danger-text">刪除</button>
+      </div>
+      <div id="d-confirm" class="confirm" hidden>
+        <span>刪除這天的日記和照片？刪除後無法復原。</span>
+        <button id="d-del-yes" class="danger-btn" type="button">刪除</button>
+        <button id="d-del-no" type="button">取消</button>
+      </div>
+      <div id="d-photos" class="photos">
+        <button id="d-add-photo" class="photo-add" type="button">＋ 照片</button>
+      </div>
+      <input id="d-photo-file" type="file" accept="image/*" multiple hidden>
+      <textarea id="d-body" class="ruled" placeholder="今天發生了什麼事？" aria-label="日記內容"></textarea>
+    </div>
+  </main>
+</div>
+
+<div id="viewer" class="overlay viewer" hidden>
+  <img id="viewer-img" alt="日記照片">
+  <div class="viewer-bar">
+    <button id="viewer-del" type="button">刪除這張</button>
+    <button id="viewer-close" class="primary" type="button">關閉</button>
+  </div>
 </div>
 
 <div id="settings" class="overlay" hidden>
@@ -217,6 +311,15 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="lock-now" type="button">立即鎖上</button>
       </div>
     </section>
+    <section>
+      <h3>備份</h3>
+      <p class="sheet-msg">筆記和日記（含照片）都只存在這支手機裡。備份檔包含全部內容，照片多時檔案會比較大。</p>
+      <div class="sheet-row">
+        <button class="js-export" type="button">匯出備份</button>
+        <button class="js-import" type="button">匯入備份</button>
+      </div>
+      <p class="sheet-msg js-store-note"></p>
+    </section>
     <div class="sheet-btns"><button id="settings-close" class="primary" type="button">完成</button></div>
   </div>
 </div>
@@ -235,5 +338,6 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 </div>
 
 <script src="app.js"></script>
+<script src="diary.js"></script>
 </body>
 </html>

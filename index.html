@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>隨手筆記本</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -13,10 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#E6EBEA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141B22" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500&display=swap">
-<script>
-try { var t = localStorage.getItem("notebook.theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
-</script>
+<script src="theme-init.js"></script>
 <style>
 /* Layout: one-screen app. A note rail beside a ruled-paper page; on phones the two swap places. */
 :root {
@@ -31,8 +29,8 @@ try { var t = localStorage.getItem("notebook.theme"); if (t === "light" || t ===
   --line: #C9D3D6;
   --sel: #DCE7F3;
   --danger: #B93848;
-  --display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", serif;
-  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --display: "Kaiti TC", "STKaiti", "BiauKai", "DFKai-SB", "Songti TC", serif;
+  --body: -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
   --row: 32px;
 }
 @media (prefers-color-scheme: dark) {

@@ -227,6 +227,8 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 #m-new-text { width: 100%; min-height: 84px; resize: vertical; font-size: 16px; line-height: 1.6; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
 .movies-rail .composer-row input, #m-new-mark { max-width: 200px; }
 .view-switch button { padding-left: 6px; padding-right: 6px; }
+/* Pinch zoom still works; double-tap zoom is off so quick taps never zoom the page. */
+html, body, button, a, input, textarea, select, label, summary { touch-action: manipulation; }
 </style>
 </head>
 <body>

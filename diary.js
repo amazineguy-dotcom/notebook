@@ -236,13 +236,14 @@
 
   /* ---- navigation ---- */
   function setView(v) {
-    if (v !== "diary") v = "notes";
+    if (v !== "diary" && v !== "books") v = "notes";
     app.setAttribute("data-view", v);
     lsSet(VIEW_KEY, v);
     document.querySelectorAll("[data-view-opt]").forEach(function (b) {
       b.setAttribute("aria-pressed", b.getAttribute("data-view-opt") === v ? "true" : "false");
     });
     if (v === "diary") { renderCal(); renderList(); }
+    document.dispatchEvent(new CustomEvent("viewchange", { detail: v }));
   }
   function openDay(k) {
     if (timer) saveNow();

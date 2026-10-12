@@ -462,17 +462,19 @@
     note("準備備份中…");
     var d = new Date(), p = function (x) { return String(x).padStart(2, "0"); };
     var name = "notebook-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + ".json";
-    var payload = { app: "notebook", version: 4, exported: d.toISOString(), notes: dump() };
+    var payload = { app: "notebook", version: 5, exported: d.toISOString(), notes: dump() };
     if (lockCfg) payload.lock = lockCfg;
     if (window.Diary) {
       try { payload.diary = await window.Diary.exportData(); }
       catch (e) { note("匯出失敗：讀取日記照片時出錯。"); return; }
     }
     if (window.Books) payload.books = window.Books.exportData();
+    if (window.Movies) payload.movies = window.Movies.exportData();
     var locked = 0;
     notes.forEach(function (n) { if (n.locked) locked++; });
     var summary = notes.size + " 則筆記" + (payload.diary ? "、" + Object.keys(payload.diary.entries).length + " 天日記（" + payload.diary.photos.length + " 張照片）" : "") +
-      (payload.books ? "、" + Object.keys(payload.books.books).length + " 本書" : "");
+      (payload.books ? "、" + Object.keys(payload.books.books).length + " 本書" : "") +
+      (payload.movies ? "、" + Object.keys(payload.movies.movies).length + " 部電影" : "");
     var tail = locked ? "上鎖的 " + locked + " 則在備份裡仍是加密的，還原時要用同一組密碼。" : "";
     var file = new File([JSON.stringify(payload)], name, { type: "application/json" });
     try {
@@ -497,7 +499,8 @@
       var data = JSON.parse(await f.text());
       var hasDiary = !!(data && data.diary && typeof data.diary === "object");
       var hasBooks = !!(data && data.books && typeof data.books === "object");
-      var src = data && data.notes && typeof data.notes === "object" ? data.notes : (hasDiary || hasBooks ? {} : null);
+      var hasMovies = !!(data && data.movies && typeof data.movies === "object");
+      var src = data && data.notes && typeof data.notes === "object" ? data.notes : (hasDiary || hasBooks || hasMovies ? {} : null);
       if (!src) throw new Error("format");
       if (!lockCfg && validCfg(data.lock)) {
         var c = { salt: data.lock.salt, check: { iv: data.lock.check.iv, ct: data.lock.check.ct } };
@@ -522,6 +525,10 @@
       if (hasBooks && window.Books) {
         var rb = window.Books.importData(data.books);
         if (rb) msg += "；書籍新增 " + rb.added + " 本，更新 " + rb.updated + " 本";
+      }
+      if (hasMovies && window.Movies) {
+        var rm = window.Movies.importData(data.movies);
+        if (rm) msg += "；電影新增 " + rm.added + " 部，更新 " + rm.updated + " 部";
       }
       note(msg + "。");
     } catch (err) {

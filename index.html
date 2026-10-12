@@ -81,7 +81,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; 
 .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
 .bar .status { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar .status.err { color: var(--danger); }
-#back, #d-back, #b-back { display: none; }
+#back, #d-back, #b-back, #m-back { display: none; }
 #pin[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 #del, .danger-text { color: var(--danger); }
 .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--sel); }
@@ -102,9 +102,9 @@ h1 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; 
 @media (max-width: 759px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .page { display: none; }
-  .app.editing .notes-page, .app.diary-editing .diary-page, .app.books-editing .books-page { display: flex; }
-  .app.editing .notes-rail, .app.diary-editing .diary-rail, .app.books-editing .books-rail { display: none; }
-  #back, #d-back, #b-back { display: inline-block; }
+  .app.editing .notes-page, .app.diary-editing .diary-page, .app.books-editing .books-page, .app.movies-editing .movies-page { display: flex; }
+  .app.editing .notes-rail, .app.diary-editing .diary-rail, .app.books-editing .books-rail, .app.movies-editing .movies-rail { display: none; }
+  #back, #d-back, #b-back, #m-back { display: inline-block; }
 }
 
 html, body { margin: 0; height: 100%; overscroll-behavior: none; }
@@ -216,6 +216,17 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 .entry-edit { width: 100%; font-size: 16px; line-height: 1.6; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); resize: vertical; }
 .entry .entry-actions { margin-top: 8px; }
 .entry .entry-meta .entry-actions { margin-top: 0; }
+.app:not([data-view="movies"]) .movies-only { display: none !important; }
+.app[data-view="movies"] .diary-only { display: none !important; }
+#m-search { width: 100%; font-size: 16px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+#m-title { border: 0; border-bottom: 2px solid var(--rule); background: transparent; font-family: var(--display); font-weight: 700; font-size: 24px; padding: 4px 0 8px; width: 100%; }
+#m-people { border: 0; border-bottom: 1px solid var(--rule); background: transparent; font-size: 16px; padding: 6px 0; width: 100%; color: var(--muted); }
+#m-title:focus-visible, #m-people:focus-visible { outline: none; border-bottom-color: var(--accent); }
+.m-date-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+#m-date { font-size: 16px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
+#m-new-text { width: 100%; min-height: 84px; resize: vertical; font-size: 16px; line-height: 1.6; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.movies-rail .composer-row input, #m-new-mark { max-width: 200px; }
+.view-switch button { padding-left: 6px; padding-right: 6px; }
 </style>
 </head>
 <body>
@@ -228,10 +239,11 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="new-note" class="primary" type="button">＋ 新筆記</button>
       </div>
     </header>
-    <div class="seg view-switch" aria-label="切換筆記或日記">
+    <div class="seg view-switch" aria-label="切換筆記、日記、書籍或電影">
       <button type="button" data-view-opt="notes">筆記</button>
       <button type="button" data-view-opt="diary">日記</button>
       <button type="button" data-view-opt="books">書籍</button>
+      <button type="button" data-view-opt="movies">電影</button>
     </div>
     <input id="search" type="search" placeholder="搜尋筆記或標籤" aria-label="搜尋筆記">
     <div id="tag-bar" class="tag-bar" aria-label="依標籤篩選" hidden></div>
@@ -276,10 +288,11 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="d-today" class="primary" type="button">今天</button>
       </div>
     </header>
-    <div class="seg view-switch" aria-label="切換筆記或日記">
+    <div class="seg view-switch" aria-label="切換筆記、日記、書籍或電影">
       <button type="button" data-view-opt="notes">筆記</button>
       <button type="button" data-view-opt="diary">日記</button>
       <button type="button" data-view-opt="books">書籍</button>
+      <button type="button" data-view-opt="movies">電影</button>
     </div>
     <input id="d-search" type="search" placeholder="搜尋日記" aria-label="搜尋日記">
     <div class="cal">
@@ -325,10 +338,11 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         <button id="b-new" class="primary" type="button">＋ 新書</button>
       </div>
     </header>
-    <div class="seg view-switch" aria-label="切換筆記、日記或書籍">
+    <div class="seg view-switch" aria-label="切換筆記、日記、書籍或電影">
       <button type="button" data-view-opt="notes">筆記</button>
       <button type="button" data-view-opt="diary">日記</button>
       <button type="button" data-view-opt="books">書籍</button>
+      <button type="button" data-view-opt="movies">電影</button>
     </div>
     <input id="b-search" type="search" placeholder="搜尋書名、作者、金句或感想" aria-label="搜尋書籍">
     <div class="tag-bar" aria-label="篩選書籍">
@@ -384,6 +398,76 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
         </div>
         <p id="b-entries-title" class="list-title"></p>
         <ul id="b-entries" class="entries" aria-label="金句與感想"></ul>
+      </div>
+    </div>
+  </main>
+  <aside class="rail movies-rail movies-only">
+    <header class="rail-head">
+      <h1>隨手筆記本</h1>
+      <div class="head-btns">
+        <button class="open-settings" type="button">設定</button>
+        <button id="m-new" class="primary" type="button">＋ 新電影</button>
+      </div>
+    </header>
+    <div class="seg view-switch" aria-label="切換筆記、日記、書籍或電影">
+      <button type="button" data-view-opt="notes">筆記</button>
+      <button type="button" data-view-opt="diary">日記</button>
+      <button type="button" data-view-opt="books">書籍</button>
+      <button type="button" data-view-opt="movies">電影</button>
+    </div>
+    <input id="m-search" type="search" placeholder="搜尋片名、導演、台詞或感想" aria-label="搜尋電影">
+    <div class="tag-bar" aria-label="篩選電影">
+      <button type="button" class="chip" data-movie-filter="all">全部</button>
+      <button type="button" class="chip" data-movie-filter="watched">看過</button>
+      <button type="button" class="chip" data-movie-filter="want">想看</button>
+      <button type="button" class="chip" data-movie-filter="quotes">金句集</button>
+    </div>
+    <ul id="m-list" class="list" aria-label="電影列表"></ul>
+  </aside>
+
+  <main class="page movies-page movies-only">
+    <div id="m-blank" class="blank">選一部電影，或按「＋ 新電影」新增。</div>
+    <div id="m-editor" class="editor" hidden>
+      <div class="bar">
+        <button id="m-back" type="button" aria-label="回到片單">‹ 片單</button>
+        <span id="m-status" class="status" role="status"></span>
+        <button id="m-del" type="button" class="danger-text">刪除</button>
+      </div>
+      <div id="m-confirm" class="confirm" hidden>
+        <span>刪除這部電影和裡面所有的金句、感想？刪除後無法復原。</span>
+        <button id="m-del-yes" class="danger-btn" type="button">刪除</button>
+        <button id="m-del-no" type="button">取消</button>
+      </div>
+      <div class="b-scroll">
+        <input id="m-title" type="text" placeholder="片名" aria-label="片名" autocomplete="off" enterkeyhint="next">
+        <input id="m-people" type="text" placeholder="導演、主演（選填）" aria-label="導演、主演" autocomplete="off" enterkeyhint="next">
+        <div class="b-meta-row">
+          <div class="seg" aria-label="觀看狀態">
+            <button type="button" data-movie-status="want">想看</button>
+            <button type="button" data-movie-status="watched">看過</button>
+          </div>
+          <div class="stars" aria-label="評分">
+            <button type="button" data-movie-star="1" aria-label="1 顆星">★</button>
+            <button type="button" data-movie-star="2" aria-label="2 顆星">★</button>
+            <button type="button" data-movie-star="3" aria-label="3 顆星">★</button>
+            <button type="button" data-movie-star="4" aria-label="4 顆星">★</button>
+            <button type="button" data-movie-star="5" aria-label="5 顆星">★</button>
+          </div>
+        </div>
+        <label id="m-date-row" class="m-date-row">觀看日期 <input id="m-date" type="date" aria-label="觀看日期"></label>
+        <div class="composer">
+          <div class="seg" aria-label="類型">
+            <button type="button" data-movie-entry="quote">金句</button>
+            <button type="button" data-movie-entry="thought">感想</button>
+          </div>
+          <textarea id="m-new-text" aria-label="內容"></textarea>
+          <div class="composer-row">
+            <input id="m-new-mark" type="text" placeholder="角色或時間點（選填）" aria-label="角色或時間點">
+            <button id="m-add" class="primary" type="button">加入</button>
+          </div>
+        </div>
+        <p id="m-entries-title" class="list-title"></p>
+        <ul id="m-entries" class="entries" aria-label="金句與感想"></ul>
       </div>
     </div>
   </main>
@@ -447,5 +531,6 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 <script src="app.js"></script>
 <script src="diary.js"></script>
 <script src="books.js"></script>
+<script src="movies.js"></script>
 </body>
 </html>

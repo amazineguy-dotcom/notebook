@@ -236,7 +236,7 @@
 
   /* ---- navigation ---- */
   function setView(v) {
-    if (v !== "diary" && v !== "books") v = "notes";
+    if (v !== "diary" && v !== "books" && v !== "movies") v = "notes";
     app.setAttribute("data-view", v);
     lsSet(VIEW_KEY, v);
     document.querySelectorAll("[data-view-opt]").forEach(function (b) {

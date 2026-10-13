@@ -233,12 +233,15 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
 .item-path { font-size: 12px; color: var(--muted); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 16px 0 44px; font-size: 13px; color: var(--muted); }
 .crumbs button { min-height: 28px; padding: 2px 6px; border: 0; color: var(--accent); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row { display: flex; align-items: stretch; }
-.twisty { flex: 0 0 32px; min-height: 0; padding: 0; border: 0; border-radius: 4px; color: var(--ink); font-size: 18px; }
-.twisty:disabled { opacity: 0; cursor: default; }
-.tree-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 11px 8px 11px 2px; }
-.tree-item .item-title { font-size: 17px; }
-.item-count { font-size: 12px; color: var(--muted); min-width: 1.6em; padding: 0 5px; border-radius: 9px; background: var(--sel); text-align: center; }
+.folder-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.folder-bar button { min-width: 44px; font-size: 20px; line-height: 1; padding: 6px 10px; }
+.folder-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.folder-path { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-title { font-family: var(--display); font-size: 21px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.item-go { font-size: 20px; line-height: 1; color: var(--muted); margin-left: 2px; }
+.self-row .item { background: var(--bg); }
+.self-row .item-title { font-size: 15px; color: var(--muted); }
 .kids { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 6px 16px 6px 44px; border-bottom: 1px solid var(--rule); flex-shrink: 0; scrollbar-width: none; }
 .kids::-webkit-scrollbar { display: none; }
 .kids-list { display: flex; gap: 6px; }
@@ -267,6 +270,11 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
       <button type="button" data-view-opt="books">書籍</button>
       <button type="button" data-view-opt="movies">電影</button>
     </div>
+    <div id="folder-bar" class="folder-bar" hidden>
+      <button id="folder-up" type="button" aria-label="回到上一層">‹</button>
+      <div class="folder-name"><span id="folder-path" class="folder-path"></span><span id="folder-title" class="folder-title"></span></div>
+      <button id="folder-more" type="button" aria-label="這一層的動作：編輯、移動、刪除">⋯</button>
+    </div>
     <input id="search" type="search" placeholder="搜尋筆記或標籤" aria-label="搜尋筆記">
     <div id="tag-bar" class="tag-bar" aria-label="依標籤篩選" hidden></div>
     <ul id="note-list" class="list" aria-label="筆記列表"></ul>
@@ -290,11 +298,6 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
         <button id="pin" type="button" aria-pressed="false">釘選</button>
         <button id="lock" type="button" aria-pressed="false">上鎖</button>
         <button id="more" type="button" aria-label="更多動作：移動、刪除">⋯</button>
-      </div>
-      <div id="confirm" class="confirm" hidden>
-        <span id="confirm-text">刪除這則筆記？刪除後無法復原。</span>
-        <button id="del-yes" class="danger-btn" type="button">刪除</button>
-        <button id="del-no" type="button">取消</button>
       </div>
       <nav id="crumbs" class="crumbs" aria-label="上層筆記" hidden></nav>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
@@ -510,6 +513,7 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
 
 <div id="note-menu" class="overlay" hidden>
   <div class="sheet menu-sheet" role="dialog" aria-modal="true" aria-label="更多動作">
+    <button id="menu-edit" type="button" hidden>編輯這一層的標題和內容</button>
     <button id="menu-move" type="button">移動到其他筆記底下…</button>
     <button id="menu-del" type="button" class="danger-text">刪除這則筆記</button>
     <button id="menu-cancel" type="button">取消</button>

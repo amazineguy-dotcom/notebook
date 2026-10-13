@@ -6,11 +6,14 @@
   var titleEl = $("note-title"), tagsEl = $("note-tags"), bodyEl = $("note-body");
   var pinEl = $("pin"), lockEl = $("lock"), confirmEl = $("confirm"), relockEl = $("relock");
 
-  var LS_KEY = "notebook.notes.v1", LOCK_KEY = "notebook.lock.v1", THEME_KEY = "notebook.theme";
+  var LS_KEY = "notebook.notes.v1", LOCK_KEY = "notebook.lock.v1", THEME_KEY = "notebook.theme", OPEN_KEY = "notebook.expanded.v1";
   var ITER = 210000, CHECK = "notebook-lock-check", RELOCK_MS = 60000;
   var notes = new Map();   // id -> {id,parent,created,title,body,updated,pinned,tags,locked,enc,ok,dirty}
   var currentId = null, query = "", activeTag = "", timer = null;
   var lockCfg = null, sessionPw = null, keys = {}, hiddenAt = 0;
+  var expanded = new Set();
+  try { (JSON.parse(localStorage.getItem(OPEN_KEY) || "[]") || []).forEach(function (id) { if (typeof id === "string") expanded.add(id); }); } catch (e) {}
+  function saveExpanded() { try { localStorage.setItem(OPEN_KEY, JSON.stringify(Array.from(expanded))); } catch (e) {} }
 
   function newId() { return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -199,7 +202,6 @@
     while (p) { if (seen[p.id]) return true; seen[p.id] = true; p = parentOf(p); }
     return !parentOf(n);
   }
-  function rootOf(n) { var a = ancestors(n); return a.length && !isRoot(n) ? a[0] : n; }
   function childrenOf(id) {
     var arr = [];
     notes.forEach(function (c) { if (c.parent === id && c.id !== id) arr.push(c); });
@@ -266,11 +268,11 @@
         : "還沒有筆記。按「＋ 新筆記」寫下第一則，內容會自動儲存。";
       listEl.appendChild(e); return;
     }
-    var cur = notes.get(currentId), curRoot = cur ? rootOf(cur).id : null, flat = flatMode();
+    if (!flatMode()) { renderTree(arr); return; }
     arr.forEach(function (n) {
       var li = document.createElement("li"), b = document.createElement("button");
       b.type = "button"; b.className = "item";
-      if (n.id === currentId || (!flat && n.id === curRoot)) b.setAttribute("aria-current", "true");
+      if (n.id === currentId) b.setAttribute("aria-current", "true");
       var path = ancestors(n);
       if (path.length) {
         var pp = document.createElement("div"); pp.className = "item-path";
@@ -281,8 +283,6 @@
       var t = document.createElement("span"); t.className = "item-title";
       t.textContent = noteName(n);
       top.appendChild(t);
-      var kids = childrenOf(n.id).length;
-      if (kids) top.appendChild(badge(kids + " 子筆記"));
       if (n.locked) top.appendChild(badge(n.ok ? "已解鎖" : "上鎖"));
       if (n.pinned) top.appendChild(badge("釘選"));
       var d = document.createElement("span"); d.className = "item-date"; d.textContent = fmtDate(n.updated); top.appendChild(d);
@@ -297,6 +297,41 @@
       b.addEventListener("click", function () { openNote(n.id); });
       li.appendChild(b); listEl.appendChild(li);
     });
+  }
+  function renderTree(roots) {
+    var seen = {};
+    (function walk(list, depth) {
+      list.forEach(function (n) {
+        if (seen[n.id]) return;
+        seen[n.id] = true;
+        var kids = childrenOf(n.id), open = expanded.has(n.id) && kids.length > 0;
+        var li = document.createElement("li"); li.className = "row";
+        var tw = document.createElement("button");
+        tw.type = "button"; tw.className = "twisty";
+        tw.style.marginLeft = Math.min(depth, 6) * 16 + "px";
+        if (kids.length) {
+          tw.textContent = open ? "▾" : "▸";
+          tw.setAttribute("aria-expanded", open ? "true" : "false");
+          tw.setAttribute("aria-label", (open ? "收合" : "展開") + "「" + noteName(n) + "」的子筆記");
+          tw.addEventListener("click", function () {
+            if (expanded.has(n.id)) expanded.delete(n.id); else expanded.add(n.id);
+            saveExpanded(); renderList();
+          });
+        } else { tw.disabled = true; tw.tabIndex = -1; tw.setAttribute("aria-hidden", "true"); }
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "item tree-item";
+        if (n.id === currentId) b.setAttribute("aria-current", "true");
+        var t = document.createElement("span"); t.className = "item-title"; t.textContent = noteName(n);
+        b.appendChild(t);
+        if (n.locked) b.appendChild(badge(n.ok ? "已解鎖" : "上鎖"));
+        if (n.pinned) b.appendChild(badge("釘選"));
+        if (kids.length && !open) { var c = document.createElement("span"); c.className = "item-count"; c.textContent = kids.length; b.appendChild(c); }
+        var d = document.createElement("span"); d.className = "item-date"; d.textContent = fmtDate(n.updated); b.appendChild(d);
+        b.addEventListener("click", function () { openNote(n.id); });
+        li.appendChild(tw); li.appendChild(b); listEl.appendChild(li);
+        if (open) walk(kids, depth + 1);
+      });
+    })(roots, 0);
   }
   function renderEditor() {
     var n = currentId && notes.get(currentId);
@@ -314,7 +349,6 @@
     pinEl.textContent = n.pinned ? "已釘選" : "釘選";
     lockEl.setAttribute("aria-pressed", n.locked ? "true" : "false");
     lockEl.textContent = n.locked ? "已上鎖" : "上鎖";
-    $("back").textContent = parentOf(n) ? "‹ 上一層" : "‹ 列表";
     renderCrumbs(n); renderChildren(n);
     if (!timer) setStatus(n.updated ? "已儲存 " + fmtDate(n.updated) : "");
   }
@@ -331,20 +365,15 @@
     });
   }
   function renderChildren(n) {
-    var kids = childrenOf(n.id), list = $("child-list");
-    $("child-count").textContent = kids.length ? "子筆記（" + kids.length + "）" : "子筆記";
-    list.textContent = ""; list.hidden = !kids.length;
-    kids.forEach(function (c) {
-      var li = document.createElement("li"), b = document.createElement("button");
-      b.type = "button"; b.className = "child";
-      var nm = document.createElement("span"); nm.className = "child-name"; nm.textContent = noteName(c);
-      b.appendChild(nm);
-      if (c.locked) b.appendChild(badge(c.ok ? "已解鎖" : "上鎖"));
-      if (c.pinned) b.appendChild(badge("釘選"));
+    var list = $("child-list");
+    list.textContent = "";
+    childrenOf(n.id).forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "kid";
       var cc = childrenOf(c.id).length;
-      if (cc) { var k = document.createElement("span"); k.className = "child-count"; k.textContent = cc + " 子筆記 ›"; b.appendChild(k); }
+      b.textContent = (c.locked && !c.ok ? "上鎖的筆記" : noteName(c)) + (cc ? " ›" : "");
       b.addEventListener("click", function () { openNote(c.id); });
-      li.appendChild(b); list.appendChild(li);
+      list.appendChild(b);
     });
   }
   function renderLockUi() {
@@ -464,6 +493,8 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     if (!modal.hidden) { if (!modalBusy) closeModal(true); }
+    else if (!$("move").hidden) $("move").hidden = true;
+    else if (!$("note-menu").hidden) $("note-menu").hidden = true;
     else if (!settings.hidden) settings.hidden = true;
   });
 
@@ -474,17 +505,15 @@
       if (!(await ensureUnlocked())) return;
       if (hidden(n)) { note("這則筆記是用別的密碼加密的（可能來自其他備份），目前打不開。"); return; }
     }
+    ancestors(n).forEach(function (p) { expanded.add(p.id); });
+    saveExpanded();
     currentId = id; renderList(); renderEditor();
   }
-  function closeNote() {
-    if (timer) saveNow();
-    var n = notes.get(currentId), p = n && parentOf(n);
-    if (p && !hidden(p)) { openNote(p.id); return; }
-    currentId = null; renderList(); renderEditor();
-  }
+  function closeNote() { if (timer) saveNow(); currentId = null; renderList(); renderEditor(); }
   function createNote(parent, tags) {
     var now = Date.now(), n = clean(newId(), { updated: now, created: now, parent: parent, tags: tags });
     notes.set(n.id, n);
+    if (parent) { expanded.add(parent); saveExpanded(); }
     openNote(n.id); saveSoon(); titleEl.focus();
   }
 
@@ -532,7 +561,53 @@
     n.locked = true; n.ok = true; n.dirty = true;
     await saveNow(); renderAll(); setStatus("已上鎖");
   });
-  $("del").addEventListener("click", function () {
+  var noteMenu = $("note-menu"), moveSheet = $("move");
+  $("more").addEventListener("click", function () {
+    if (!notes.get(currentId)) return;
+    noteMenu.hidden = false; $("menu-move").focus();
+  });
+  $("menu-cancel").addEventListener("click", function () { noteMenu.hidden = true; });
+  noteMenu.addEventListener("click", function (e) { if (e.target === noteMenu) noteMenu.hidden = true; });
+  moveSheet.addEventListener("click", function (e) { if (e.target === moveSheet) moveSheet.hidden = true; });
+  $("move-cancel").addEventListener("click", function () { moveSheet.hidden = true; });
+  function moveTo(n, target) {
+    n.parent = target ? target.id : null; n.updated = Date.now();
+    if (target) { ancestors(target).concat([target]).forEach(function (p) { expanded.add(p.id); }); saveExpanded(); }
+    moveSheet.hidden = true;
+    persist(); renderAll();
+    setStatus(target ? "已移到「" + noteName(target) + "」底下" : "已移到最上層");
+  }
+  $("menu-move").addEventListener("click", function () {
+    noteMenu.hidden = true;
+    var n = notes.get(currentId); if (!n) return;
+    var banned = {}, list = $("move-list");
+    banned[n.id] = true;
+    descendants(n.id).forEach(function (c) { banned[c.id] = true; });
+    list.textContent = "";
+    var add = function (label, depth, target, isHere) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = label + (isHere ? "（目前位置）" : "");
+      b.style.paddingLeft = 8 + Math.min(depth, 6) * 16 + "px";
+      if (isHere) b.disabled = true;
+      else b.addEventListener("click", function () { moveTo(n, target); });
+      li.appendChild(b); list.appendChild(li);
+    };
+    add("最上層", 0, null, !n.parent || !parentOf(n));
+    var roots = [], seen = {};
+    notes.forEach(function (x) { if (isRoot(x)) roots.push(x); });
+    roots.sort(function (a, b) { return a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : b.updated - a.updated; });
+    (function walk(arr, depth) {
+      arr.forEach(function (x) {
+        if (seen[x.id] || banned[x.id]) return;
+        seen[x.id] = true;
+        add(noteName(x), depth, x, n.parent === x.id);
+        walk(childrenOf(x.id), depth + 1);
+      });
+    })(roots, 1);
+    moveSheet.hidden = false;
+  });
+  $("menu-del").addEventListener("click", function () {
+    noteMenu.hidden = true;
     var k = descendants(currentId).length;
     $("confirm-text").textContent = k ? "刪除這則筆記和底下 " + k + " 則子筆記？刪除後無法復原。" : "刪除這則筆記？刪除後無法復原。";
     confirmEl.hidden = false;

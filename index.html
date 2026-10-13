@@ -233,13 +233,22 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
 .item-path { font-size: 12px; color: var(--muted); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 16px 0 44px; font-size: 13px; color: var(--muted); }
 .crumbs button { min-height: 28px; padding: 2px 6px; border: 0; color: var(--accent); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.children { flex-shrink: 0; max-height: 32vh; overflow-y: auto; padding: 6px 16px 8px 44px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 6px; }
-.children-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
-.children-head button { min-height: 32px; padding: 4px 10px; font-size: 13px; color: var(--accent); }
-.child-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.child { width: 100%; min-height: 38px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; text-align: left; }
-.child-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 700; }
-.child-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.row { display: flex; align-items: stretch; }
+.twisty { flex: 0 0 32px; min-height: 0; padding: 0; border: 0; border-radius: 4px; color: var(--ink); font-size: 18px; }
+.twisty:disabled { opacity: 0; cursor: default; }
+.tree-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 11px 8px 11px 2px; }
+.tree-item .item-title { font-size: 17px; }
+.item-count { font-size: 12px; color: var(--muted); min-width: 1.6em; padding: 0 5px; border-radius: 9px; background: var(--sel); text-align: center; }
+.kids { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 6px 16px 6px 44px; border-bottom: 1px solid var(--rule); flex-shrink: 0; scrollbar-width: none; }
+.kids::-webkit-scrollbar { display: none; }
+.kids-list { display: flex; gap: 6px; }
+.kid { flex-shrink: 0; min-height: 32px; padding: 4px 12px; border-radius: 16px; font-size: 13px; white-space: nowrap; max-width: 12em; overflow: hidden; text-overflow: ellipsis; }
+.kid-add { color: var(--accent); border-style: dashed; }
+#more { font-size: 18px; line-height: 1; min-width: 44px; }
+.menu-sheet button { width: 100%; text-align: left; }
+.move-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; border-top: 1px solid var(--line); }
+.move-list button { width: 100%; text-align: left; border: 0; border-radius: 0; border-bottom: 1px solid var(--line); padding: 10px 8px; }
+.move-list button:disabled { color: var(--muted); cursor: default; }
 </style>
 </head>
 <body>
@@ -280,7 +289,7 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
         <span id="status" class="status" role="status"></span>
         <button id="pin" type="button" aria-pressed="false">釘選</button>
         <button id="lock" type="button" aria-pressed="false">上鎖</button>
-        <button id="del" type="button">刪除</button>
+        <button id="more" type="button" aria-label="更多動作：移動、刪除">⋯</button>
       </div>
       <div id="confirm" class="confirm" hidden>
         <span id="confirm-text">刪除這則筆記？刪除後無法復原。</span>
@@ -290,12 +299,9 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
       <nav id="crumbs" class="crumbs" aria-label="上層筆記" hidden></nav>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
       <input id="note-tags" type="text" placeholder="標籤，用空白分開，例如：工作 待辦" aria-label="標籤" autocomplete="off" autocapitalize="off" enterkeyhint="next">
-      <div class="children">
-        <div class="children-head">
-          <span id="child-count">子筆記</span>
-          <button id="new-child" type="button">＋ 子筆記</button>
-        </div>
-        <ul id="child-list" class="child-list" aria-label="子筆記" hidden></ul>
+      <div class="kids" aria-label="子筆記">
+        <button id="new-child" class="kid kid-add" type="button">＋ 子筆記</button>
+        <div id="child-list" class="kids-list"></div>
       </div>
       <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
     </div>
@@ -499,6 +505,23 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
   <div class="viewer-bar">
     <button id="viewer-del" type="button">刪除這張</button>
     <button id="viewer-close" class="primary" type="button">關閉</button>
+  </div>
+</div>
+
+<div id="note-menu" class="overlay" hidden>
+  <div class="sheet menu-sheet" role="dialog" aria-modal="true" aria-label="更多動作">
+    <button id="menu-move" type="button">移動到其他筆記底下…</button>
+    <button id="menu-del" type="button" class="danger-text">刪除這則筆記</button>
+    <button id="menu-cancel" type="button">取消</button>
+  </div>
+</div>
+
+<div id="move" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="move-title">
+    <h2 id="move-title">移動到…</h2>
+    <p class="sheet-msg">選一則筆記，這則筆記（連同它的子筆記）會搬到它底下。</p>
+    <ul id="move-list" class="move-list"></ul>
+    <div class="sheet-btns"><button id="move-cancel" type="button">取消</button></div>
   </div>
 </div>
 

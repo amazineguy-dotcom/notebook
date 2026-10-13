@@ -229,6 +229,17 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 .view-switch button { padding-left: 6px; padding-right: 6px; }
 /* Pinch zoom still works; double-tap zoom is off so quick taps never zoom the page. */
 html, body, button, a, input, textarea, select, label, summary { touch-action: manipulation; }
+
+.item-path { font-size: 12px; color: var(--muted); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 16px 0 44px; font-size: 13px; color: var(--muted); }
+.crumbs button { min-height: 28px; padding: 2px 6px; border: 0; color: var(--accent); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.children { flex-shrink: 0; max-height: 32vh; overflow-y: auto; padding: 6px 16px 8px 44px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 6px; }
+.children-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.children-head button { min-height: 32px; padding: 4px 10px; font-size: 13px; color: var(--accent); }
+.child-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.child { width: 100%; min-height: 38px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; text-align: left; }
+.child-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 700; }
+.child-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -272,12 +283,20 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
         <button id="del" type="button">刪除</button>
       </div>
       <div id="confirm" class="confirm" hidden>
-        <span>刪除這則筆記？刪除後無法復原。</span>
+        <span id="confirm-text">刪除這則筆記？刪除後無法復原。</span>
         <button id="del-yes" class="danger-btn" type="button">刪除</button>
         <button id="del-no" type="button">取消</button>
       </div>
+      <nav id="crumbs" class="crumbs" aria-label="上層筆記" hidden></nav>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
       <input id="note-tags" type="text" placeholder="標籤，用空白分開，例如：工作 待辦" aria-label="標籤" autocomplete="off" autocapitalize="off" enterkeyhint="next">
+      <div class="children">
+        <div class="children-head">
+          <span id="child-count">子筆記</span>
+          <button id="new-child" type="button">＋ 子筆記</button>
+        </div>
+        <ul id="child-list" class="child-list" aria-label="子筆記" hidden></ul>
+      </div>
       <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
     </div>
   </main>

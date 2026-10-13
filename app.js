@@ -8,7 +8,7 @@
 
   var LS_KEY = "notebook.notes.v1", LOCK_KEY = "notebook.lock.v1", THEME_KEY = "notebook.theme";
   var ITER = 210000, CHECK = "notebook-lock-check", RELOCK_MS = 60000;
-  var notes = new Map();   // id -> {id,title,body,updated,pinned,tags,locked,enc,ok,dirty}
+  var notes = new Map();   // id -> {id,parent,created,title,body,updated,pinned,tags,locked,enc,ok,dirty}
   var currentId = null, query = "", activeTag = "", timer = null;
   var lockCfg = null, sessionPw = null, keys = {}, hiddenAt = 0;
 
@@ -32,8 +32,9 @@
   function clean(id, r) {
     r = r || {};
     var locked = !!r.locked && validEnc(r.enc);
+    var parent = typeof r.parent === "string" && r.parent !== id && /^[A-Za-z0-9_-]{1,64}$/.test(r.parent) ? r.parent : null;
     return {
-      id: id, updated: Number(r.updated) || 0, pinned: !!r.pinned,
+      id: id, parent: parent, updated: Number(r.updated) || 0, created: Number(r.created) || Number(r.updated) || 0, pinned: !!r.pinned,
       tags: Array.isArray(r.tags) ? normTags(r.tags.join(" ")) : [],
       locked: locked, enc: locked ? { salt: r.enc.salt, iv: r.enc.iv, ct: r.enc.ct } : null,
       title: locked ? "" : String(r.title || ""), body: locked ? "" : String(r.body || ""),
@@ -114,7 +115,7 @@
   function dump() {
     var out = {};
     notes.forEach(function (n) {
-      var o = { updated: n.updated, pinned: n.pinned, tags: n.tags };
+      var o = { parent: n.parent, created: n.created, updated: n.updated, pinned: n.pinned, tags: n.tags };
       if (n.locked && n.enc) { o.locked = true; o.enc = n.enc; o.title = ""; o.body = ""; }
       else { o.title = n.title; o.body = n.body; }
       out[n.id] = o;
@@ -184,9 +185,46 @@
 
   /* ---- render ---- */
   function hidden(n) { return n.locked && !n.ok; }
+  function noteName(n) { return hidden(n) ? "上鎖的筆記" : (n.title.trim() || "未命名筆記"); }
+  function parentOf(n) { return n.parent && notes.has(n.parent) ? notes.get(n.parent) : null; }
+  function ancestors(n) {
+    var out = [], seen = {}, p = parentOf(n);
+    seen[n.id] = true;
+    while (p && !seen[p.id]) { seen[p.id] = true; out.unshift(p); p = parentOf(p); }
+    return out;
+  }
+  function isRoot(n) {
+    var seen = {}, p = parentOf(n);
+    seen[n.id] = true;
+    while (p) { if (seen[p.id]) return true; seen[p.id] = true; p = parentOf(p); }
+    return !parentOf(n);
+  }
+  function rootOf(n) { var a = ancestors(n); return a.length && !isRoot(n) ? a[0] : n; }
+  function childrenOf(id) {
+    var arr = [];
+    notes.forEach(function (c) { if (c.parent === id && c.id !== id) arr.push(c); });
+    arr.sort(function (a, b) {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return a.created - b.created;
+    });
+    return arr;
+  }
+  function descendants(id) {
+    var out = [], seen = {}, stack = [id];
+    seen[id] = true;
+    while (stack.length) {
+      childrenOf(stack.pop()).forEach(function (c) {
+        if (seen[c.id]) return;
+        seen[c.id] = true; out.push(c); stack.push(c.id);
+      });
+    }
+    return out;
+  }
+  function flatMode() { return !!(query.trim() || activeTag); }
   function visibleNotes() {
-    var q = query.trim().toLowerCase(), arr = [];
+    var q = query.trim().toLowerCase(), arr = [], flat = flatMode();
     notes.forEach(function (n) {
+      if (!flat && !isRoot(n)) return;
       if (activeTag && n.tags.indexOf(activeTag) === -1) return;
       if (q) {
         var hay = n.tags.join(" ") + (hidden(n) ? "" : "\n" + n.title + "\n" + n.body);
@@ -228,14 +266,23 @@
         : "還沒有筆記。按「＋ 新筆記」寫下第一則，內容會自動儲存。";
       listEl.appendChild(e); return;
     }
+    var cur = notes.get(currentId), curRoot = cur ? rootOf(cur).id : null, flat = flatMode();
     arr.forEach(function (n) {
       var li = document.createElement("li"), b = document.createElement("button");
       b.type = "button"; b.className = "item";
-      if (n.id === currentId) b.setAttribute("aria-current", "true");
+      if (n.id === currentId || (!flat && n.id === curRoot)) b.setAttribute("aria-current", "true");
+      var path = ancestors(n);
+      if (path.length) {
+        var pp = document.createElement("div"); pp.className = "item-path";
+        pp.textContent = path.map(noteName).join(" › ") + " ›";
+        b.appendChild(pp);
+      }
       var top = document.createElement("div"); top.className = "item-top";
       var t = document.createElement("span"); t.className = "item-title";
-      t.textContent = hidden(n) ? "上鎖的筆記" : (n.title.trim() || "未命名筆記");
+      t.textContent = noteName(n);
       top.appendChild(t);
+      var kids = childrenOf(n.id).length;
+      if (kids) top.appendChild(badge(kids + " 子筆記"));
       if (n.locked) top.appendChild(badge(n.ok ? "已解鎖" : "上鎖"));
       if (n.pinned) top.appendChild(badge("釘選"));
       var d = document.createElement("span"); d.className = "item-date"; d.textContent = fmtDate(n.updated); top.appendChild(d);
@@ -267,7 +314,38 @@
     pinEl.textContent = n.pinned ? "已釘選" : "釘選";
     lockEl.setAttribute("aria-pressed", n.locked ? "true" : "false");
     lockEl.textContent = n.locked ? "已上鎖" : "上鎖";
+    $("back").textContent = parentOf(n) ? "‹ 上一層" : "‹ 列表";
+    renderCrumbs(n); renderChildren(n);
     if (!timer) setStatus(n.updated ? "已儲存 " + fmtDate(n.updated) : "");
+  }
+  function renderCrumbs(n) {
+    var box = $("crumbs"), path = ancestors(n);
+    box.textContent = ""; box.hidden = !path.length;
+    path.forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = noteName(p);
+      b.addEventListener("click", function () { openNote(p.id); });
+      box.appendChild(b);
+      var sep = document.createElement("span"); sep.textContent = "›"; sep.setAttribute("aria-hidden", "true");
+      box.appendChild(sep);
+    });
+  }
+  function renderChildren(n) {
+    var kids = childrenOf(n.id), list = $("child-list");
+    $("child-count").textContent = kids.length ? "子筆記（" + kids.length + "）" : "子筆記";
+    list.textContent = ""; list.hidden = !kids.length;
+    kids.forEach(function (c) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.className = "child";
+      var nm = document.createElement("span"); nm.className = "child-name"; nm.textContent = noteName(c);
+      b.appendChild(nm);
+      if (c.locked) b.appendChild(badge(c.ok ? "已解鎖" : "上鎖"));
+      if (c.pinned) b.appendChild(badge("釘選"));
+      var cc = childrenOf(c.id).length;
+      if (cc) { var k = document.createElement("span"); k.className = "child-count"; k.textContent = cc + " 子筆記 ›"; b.appendChild(k); }
+      b.addEventListener("click", function () { openNote(c.id); });
+      li.appendChild(b); list.appendChild(li);
+    });
   }
   function renderLockUi() {
     var unlocked = isUnlocked(), anyLocked = false;
@@ -398,13 +476,25 @@
     }
     currentId = id; renderList(); renderEditor();
   }
-  function closeNote() { if (timer) saveNow(); currentId = null; renderList(); renderEditor(); }
+  function closeNote() {
+    if (timer) saveNow();
+    var n = notes.get(currentId), p = n && parentOf(n);
+    if (p && !hidden(p)) { openNote(p.id); return; }
+    currentId = null; renderList(); renderEditor();
+  }
+  function createNote(parent, tags) {
+    var now = Date.now(), n = clean(newId(), { updated: now, created: now, parent: parent, tags: tags });
+    notes.set(n.id, n);
+    openNote(n.id); saveSoon(); titleEl.focus();
+  }
 
   $("new-note").addEventListener("click", function () {
-    var n = clean(newId(), { updated: Date.now(), tags: activeTag ? [activeTag] : [] });
-    notes.set(n.id, n);
     query = ""; $("search").value = "";
-    openNote(n.id); saveSoon(); titleEl.focus();
+    createNote(null, activeTag ? [activeTag] : []);
+  });
+  $("new-child").addEventListener("click", function () {
+    if (!notes.get(currentId)) return;
+    createNote(currentId, []);
   });
   function onEdit() {
     var n = notes.get(currentId); if (!n) return;
@@ -442,10 +532,19 @@
     n.locked = true; n.ok = true; n.dirty = true;
     await saveNow(); renderAll(); setStatus("已上鎖");
   });
-  $("del").addEventListener("click", function () { confirmEl.hidden = false; });
+  $("del").addEventListener("click", function () {
+    var k = descendants(currentId).length;
+    $("confirm-text").textContent = k ? "刪除這則筆記和底下 " + k + " 則子筆記？刪除後無法復原。" : "刪除這則筆記？刪除後無法復原。";
+    confirmEl.hidden = false;
+  });
   $("del-no").addEventListener("click", function () { confirmEl.hidden = true; });
   $("del-yes").addEventListener("click", function () {
-    notes.delete(currentId); currentId = null; persist(); renderAll();
+    var n = notes.get(currentId); if (!n) return;
+    var p = parentOf(n);
+    descendants(n.id).forEach(function (c) { notes.delete(c.id); });
+    notes.delete(n.id);
+    currentId = p && !hidden(p) ? p.id : null;
+    persist(); renderAll();
   });
   $("back").addEventListener("click", closeNote);
   $("search").addEventListener("input", function (e) { query = e.target.value; renderList(); });

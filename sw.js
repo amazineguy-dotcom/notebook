@@ -1,4 +1,4 @@
-var PREFIX = "notebook-", CACHE = PREFIX + "v12";
+var PREFIX = "notebook-", CACHE = PREFIX + "v13";
 var SHELL = ["./", "index.html", "theme-init.js", "app.js", "diary.js", "books.js", "movies.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 // GitHub Pages lets browsers keep files for 10 minutes. Always revalidate, so a page never mixes
 // a new index.html with an old script (an old app.js crashes on missing elements).

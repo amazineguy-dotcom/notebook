@@ -229,6 +229,21 @@ body { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 .view-switch button { padding-left: 6px; padding-right: 6px; }
 /* Pinch zoom still works; double-tap zoom is off so quick taps never zoom the page. */
 html, body, button, a, input, textarea, select, label, summary { touch-action: manipulation; }
+
+.folder-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.folder-bar button { min-width: 44px; font-size: 22px; line-height: 1; padding: 4px 10px; }
+.folder-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.folder-path { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-title { font-family: var(--display); font-size: 21px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-path { font-size: 12px; color: var(--muted); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-count { font-size: 12px; color: var(--accent); white-space: nowrap; }
+.self-row .item { background: var(--sel); }
+.self-row .item-title { color: var(--accent); }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 16px 0 44px; font-size: 13px; color: var(--muted); }
+.crumbs button { min-height: 28px; padding: 2px 6px; border: 0; color: var(--accent); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#more { font-size: 18px; line-height: 1; min-width: 44px; }
+.menu-sheet button { width: 100%; text-align: left; }
+.menu-sheet #del { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -246,6 +261,10 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
       <button type="button" data-view-opt="diary">日記</button>
       <button type="button" data-view-opt="books">書籍</button>
       <button type="button" data-view-opt="movies">電影</button>
+    </div>
+    <div id="folder-bar" class="folder-bar" hidden>
+      <button id="folder-up" type="button" aria-label="回到上一層">‹</button>
+      <div class="folder-name"><span id="folder-path" class="folder-path"></span><span id="folder-title" class="folder-title"></span></div>
     </div>
     <input id="search" type="search" placeholder="搜尋筆記或標籤" aria-label="搜尋筆記">
     <div id="tag-bar" class="tag-bar" aria-label="依標籤篩選" hidden></div>
@@ -267,15 +286,15 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
       <div class="bar">
         <button id="back" type="button" aria-label="回到列表">‹ 列表</button>
         <span id="status" class="status" role="status"></span>
-        <button id="pin" type="button" aria-pressed="false">釘選</button>
-        <button id="lock" type="button" aria-pressed="false">上鎖</button>
-        <button id="del" type="button">刪除</button>
+        <button id="more" type="button" aria-label="更多動作：釘選、上鎖、刪除">⋯</button>
+        <button id="new-child" class="primary" type="button">＋ 新筆記</button>
       </div>
       <div id="confirm" class="confirm" hidden>
-        <span>刪除這則筆記？刪除後無法復原。</span>
+        <span id="confirm-text">刪除這則筆記？刪除後無法復原。</span>
         <button id="del-yes" class="danger-btn" type="button">刪除</button>
         <button id="del-no" type="button">取消</button>
       </div>
+      <nav id="crumbs" class="crumbs" aria-label="所在位置" hidden></nav>
       <input id="note-title" type="text" placeholder="標題" aria-label="標題" autocomplete="off">
       <input id="note-tags" type="text" placeholder="標籤，用空白分開，例如：工作 待辦" aria-label="標籤" autocomplete="off" autocapitalize="off" enterkeyhint="next">
       <textarea id="note-body" placeholder="開始寫…" aria-label="內容"></textarea>
@@ -480,6 +499,15 @@ html, body, button, a, input, textarea, select, label, summary { touch-action: m
   <div class="viewer-bar">
     <button id="viewer-del" type="button">刪除這張</button>
     <button id="viewer-close" class="primary" type="button">關閉</button>
+  </div>
+</div>
+
+<div id="note-menu" class="overlay" hidden>
+  <div class="sheet menu-sheet" role="dialog" aria-modal="true" aria-label="更多動作">
+    <button id="pin" type="button" aria-pressed="false">釘選</button>
+    <button id="lock" type="button" aria-pressed="false">上鎖</button>
+    <button id="del" type="button">刪除</button>
+    <button id="menu-cancel" type="button">取消</button>
   </div>
 </div>
 
